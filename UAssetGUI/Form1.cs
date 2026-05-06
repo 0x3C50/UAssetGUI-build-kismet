@@ -1,5 +1,6 @@
 ﻿using DiscordRPC;
 using Newtonsoft.Json;
+using NodeEditor;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
@@ -32,7 +33,7 @@ namespace UAssetGUI
 
         public TableHandler tableEditor;
         public ByteViewer byteView1;
-        public TextBox jsonView;
+        public KismetEditor jsonView;
 
         private DiscordRpcClient _discordRpc = null;
 
@@ -134,27 +135,22 @@ namespace UAssetGUI
                     this.AllowDrop = true;
                     dataGridView1.Visible = true;
 
-                    // Extra data viewer
-                    byteView1 = new ByteViewer
-                    {
-                        Dock = DockStyle.Fill,
-                        AutoScroll = true,
-                        AutoSize = true,
-                        Visible = false
-                    };
-                    splitContainer1.Panel2.Controls.Add(byteView1);
+            // Extra data ByteViewer
+            byteView1 = new ByteViewer
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+                AutoSize = true,
+                Visible = false
+            };
+            splitContainer1.Panel2.Controls.Add(byteView1);
 
-                    jsonView = new TextBox
-                    {
-                        Dock = DockStyle.Fill,
-                        Visible = false,
-                        AutoSize = true,
-                        Multiline = true,
-                        ReadOnly = true,
-                        MaxLength = int.MaxValue,
-                        ScrollBars = ScrollBars.Both,
-                    };
-                    splitContainer1.Panel2.Controls.Add(jsonView);
+            jsonView = new KismetEditor
+            {
+                Dock = DockStyle.Fill,
+                Visible = false,
+            };
+            splitContainer1.Panel2.Controls.Add(jsonView);
 
                     jsonView.TextChanged += (object sender, EventArgs e) => { if (tableEditor == null) return; tableEditor.dirtySinceLastLoad = true; SetUnsavedChanges(true); };
 

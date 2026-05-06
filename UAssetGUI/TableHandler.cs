@@ -1979,6 +1979,16 @@ namespace UAssetGUI
                                     renderingArr = usRealArr;
                                     dataGridView1.AllowUserToAddRows = false;
                                     break;
+                                case KismetExpression[] bytecode:
+                                    UAssetAPI.Kismet.KismetSerializer.asset = asset;
+                                    Control currentlyFocusedControl1 = origForm.ActiveControl;
+                                    dataGridView1.Visible = false;
+                                    jsonView.SetBytecode(asset, (FunctionExport) (((PointingTreeNode)pointerNode.Parent).Pointer));
+                                    jsonView.Visible = true;
+                                    currentlyFocusedControl1.Focus();
+                                    origForm.ForceResize();
+                                    standardRendering = false;
+                                    break;
                             }
                         }
 
