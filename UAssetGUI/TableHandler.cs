@@ -22,11 +22,13 @@ namespace UAssetGUI
         None = -1,
         GeneralInformation,
         NameMap,
+        SoftObjectPathList,
         Imports,
         ExportInformation,
         SoftPackageReferences,
         DependsMap,
         WorldTileInfo,
+        DataResources,
         CustomVersionContainer,
         ExportData
     }
@@ -53,7 +55,10 @@ namespace UAssetGUI
         EnumData,
         UPropertyData,
         ByteArray,
-        Dummy
+        Dummy,
+        UserDefinedStructData,
+        Kismet,
+        KismetByteArray
     }
 
     public class PointingTreeNode : TreeNode
@@ -93,6 +98,22 @@ namespace UAssetGUI
         }
     }
 
+    public class ExportPointingTreeNode : PointingTreeNode
+    {
+        public string ObjectName;
+
+        public ExportPointingTreeNode(string objectName, object pointer, PointingTreeNodeType type = 0, int exportNum = -1, bool willCopyWholeExport = false)
+            : base("Export " + (exportNum + 1) + " (" + objectName + ")", pointer, type, exportNum, willCopyWholeExport)
+        {
+            ObjectName = objectName;
+
+            ToolStripMenuItem tsmItem = new ToolStripMenuItem("Copy object name");
+            tsmItem.Click += (sender, args) => Clipboard.SetText(ObjectName);
+            this.ContextMenuStrip = new ContextMenuStrip();
+            this.ContextMenuStrip.Items.Add(tsmItem);
+        }
+    }
+
     public class PointingDictionaryEntry
     {
         public KeyValuePair<PropertyData, PropertyData> Entry;
@@ -111,8 +132,10 @@ namespace UAssetGUI
         public UAsset asset;
         public TreeView treeView1;
         public DataGridView dataGridView1;
+        public TextBox jsonView;
 
         public bool readyToSave = true;
+        public bool dirtySinceLastLoad = false; 
 
         public static Color ARGBtoRGB(Color ARGB)
         {
@@ -169,21 +192,34 @@ namespace UAssetGUI
                             InterpretThing(entry.Value, softEntryNode, topNode.ExportNum, fillAllSubNodes);
                         }
                         break;
+                    case "NiagaraVariableBase":
+                    case "NiagaraVariable":
+                    case "NiagaraVariableWithOffset":
+                        InterpretThing(((NiagaraVariableBasePropertyData)me).TypeDef, topNode, topNode.ExportNum, fillAllSubNodes);
+                        break;
                 }
             }
         }
 
         public void FillOutTree(bool fillAllSubNodes)
         {
+            int numDependsInts = 0;
+            if (asset.DependsMap != null)
+            {
+                foreach (var entry in asset.DependsMap) numDependsInts += entry.Length;
+            }
+            // if numDependsInts == 0, then it's really just unused
+
             treeView1.BeginUpdate();
             treeView1.Nodes.Clear();
             treeView1.BackColor = UAGPalette.BackColor;
             treeView1.Nodes.Add(new PointingTreeNode("General Information", null));
+            if (asset.SoftObjectPathList != null && (asset.SoftObjectPathList.Count > 0 || !asset.IsFilterEditorOnly)) treeView1.Nodes.Add(new PointingTreeNode("Soft Object Paths", null));
             treeView1.Nodes.Add(new PointingTreeNode("Name Map", null));
             treeView1.Nodes.Add(new PointingTreeNode("Import Data", null));
             treeView1.Nodes.Add(new PointingTreeNode("Export Information", null));
-            treeView1.Nodes.Add(new PointingTreeNode("Depends Map", null));
-            treeView1.Nodes.Add(new PointingTreeNode("Soft Package References", null));
+            if (numDependsInts != 0) treeView1.Nodes.Add(new PointingTreeNode("Depends Map", null));
+            if (asset.SoftPackageReferenceList != null) treeView1.Nodes.Add(new PointingTreeNode("Soft Package References", null));
             if (asset.WorldTileInfo != null)
             {
                 treeView1.Nodes.Add(new PointingTreeNode("World Tile Info", null));
@@ -196,6 +232,7 @@ namespace UAssetGUI
                     lodListNode.Nodes.Add(new PointingTreeNode("LOD entry #" + (i + 1), asset.WorldTileInfo.LODList[i]));
                 }
             }
+            if (asset.ObjectVersionUE5 >= ObjectVersionUE5.DATA_RESOURCES) treeView1.Nodes.Add(new PointingTreeNode("Data Resources", null));
             treeView1.Nodes.Add(new PointingTreeNode("Custom Version Container", null));
             treeView1.Nodes.Add(new PointingTreeNode("Export Data", null));
 
@@ -203,7 +240,7 @@ namespace UAssetGUI
             for (int i = 0; i < asset.Exports.Count; i++)
             {
                 Export baseUs = asset.Exports[i];
-                var categoryNode = new PointingTreeNode("Export " + (i + 1) + " (" + baseUs.ObjectName.Value.Value + ")", null, 0, i, true);
+                var categoryNode = new ExportPointingTreeNode(baseUs.ObjectName.Value.Value, null, 0, i, true);
                 superTopNode.Nodes.Add(categoryNode);
                 switch (baseUs)
                 {
@@ -249,16 +286,25 @@ namespace UAssetGUI
                                 categoryNode.Nodes.Add(parentNode2);
                                 if (structUs.ScriptBytecode == null)
                                 {
-                                    var bytecodeNode = new PointingTreeNode("ScriptBytecode (" + structUs.ScriptBytecodeRaw.Length + " B)", structUs.ScriptBytecodeRaw, PointingTreeNodeType.Normal, i);
+                                    var bytecodeNode = new PointingTreeNode("ScriptBytecode (" + structUs.ScriptBytecodeRaw.Length + " B)", structUs, PointingTreeNodeType.KismetByteArray, i);
                                     bytecodeNode.ChildrenInitialized = true;
                                     parentNode2.Nodes.Add(bytecodeNode);
                                 }
                                 else
                                 {
-                                    var bytecodeNode = new PointingTreeNode("ScriptBytecode (" + structUs.ScriptBytecode.Length + " instructions)", structUs.ScriptBytecode, PointingTreeNodeType.Normal, i);
+                                    var bytecodeNode = new PointingTreeNode("ScriptBytecode (" + structUs.ScriptBytecode.Length + " instructions)", structUs, PointingTreeNodeType.Kismet, i);
                                     bytecodeNode.ChildrenInitialized = true;
                                     parentNode2.Nodes.Add(bytecodeNode);
                                 }
+                            }
+
+                            if (us is UserDefinedStructExport us6)
+                            {
+                                var parentNode2 = new PointingTreeNode("UserDefinedStruct Data (" + us6.StructData.Count + ")", us, PointingTreeNodeType.UserDefinedStructData, i);
+                                parentNode2.ChildrenInitialized = true;
+                                categoryNode.Nodes.Add(parentNode2);
+
+                                for (int j = 0; j < us6.StructData.Count; j++) InterpretThing(us6.StructData[j], parentNode2, i, fillAllSubNodes);
                             }
 
                             if (us is ClassExport)
@@ -327,7 +373,12 @@ namespace UAssetGUI
             "GameplayTagContainer",
             "MapProperty",
             "MulticastDelegateProperty",
-            "Box"
+            "Box",
+            "Box2D",
+            "Box2f",
+            "NiagaraVariableBase",
+            "NiagaraVariable",
+            "NiagaraVariableWithOffset"
         };
 
         private void InterpretThing(PropertyData me, PointingTreeNode ourNode, int exportNum, bool fillAllSubNodes)
@@ -421,6 +472,8 @@ namespace UAssetGUI
                         InterpretThing(entry.Key, softEntryNode, exportNum, fillAllSubNodes);
                         InterpretThing(entry.Value, softEntryNode, exportNum, fillAllSubNodes);
                     }
+
+                    mapNode.ChildrenInitialized = true;
                     break;
                 case "MulticastDelegateProperty":
                     var mdp = (MulticastDelegatePropertyData)me;
@@ -428,9 +481,30 @@ namespace UAssetGUI
                     ourNode.Nodes.Add(new PointingTreeNode(mdp.Name.Value.Value + " (" + mdp.Value.Length + ")", mdp.Value, 0, exportNum));
                     break;
                 case "Box":
-                    var box = (BoxPropertyData)me;
+                    {
+                        var box = (BoxPropertyData)me;
 
-                    ourNode.Nodes.Add(new PointingTreeNode(box.Name.Value.Value + " (2)", box.Value, 0, exportNum));
+                        ourNode.Nodes.Add(new PointingTreeNode(box.Name.Value.Value + " (2)", box, 0, exportNum));
+                    }
+                    break;
+                case "Box2D":
+                    {
+                        var box = (Box2DPropertyData)me;
+
+                        ourNode.Nodes.Add(new PointingTreeNode(box.Name.Value.Value + " (2)", box, 0, exportNum));
+                    }
+                    break;
+                case "Box2f":
+                    {
+                        var box = (Box2fPropertyData)me;
+
+                        ourNode.Nodes.Add(new PointingTreeNode(box.Name.Value.Value + " (2)", box, 0, exportNum));
+                    }
+                    break;
+                case "NiagaraVariableBase":
+                case "NiagaraVariable":
+                case "NiagaraVariableWithOffset":
+                    InterpretThing(((NiagaraVariableBasePropertyData)me).TypeDef, ourNode, exportNum, fillAllSubNodes);
                     break;
             }
         }
@@ -497,12 +571,12 @@ namespace UAssetGUI
                                 break;
                             case "RichCurveKey":
                                 var curveData = (RichCurveKeyPropertyData)thisPD;
-                                row.Cells[++columnIndexer].Value = curveData.InterpMode;
-                                row.Cells[++columnIndexer].Value = curveData.TangentMode;
-                                row.Cells[++columnIndexer].Value = curveData.Time;
-                                row.Cells[++columnIndexer].Value = curveData.Value;
-                                row.Cells[++columnIndexer].Value = curveData.ArriveTangent;
-                                row.Cells[++columnIndexer].Value = curveData.LeaveTangent;
+                                row.Cells[++columnIndexer].Value = curveData.Value.InterpMode;
+                                row.Cells[++columnIndexer].Value = curveData.Value.TangentMode;
+                                row.Cells[++columnIndexer].Value = curveData.Value.Time;
+                                row.Cells[++columnIndexer].Value = curveData.Value.Value;
+                                row.Cells[++columnIndexer].Value = curveData.Value.ArriveTangent;
+                                row.Cells[++columnIndexer].Value = curveData.Value.LeaveTangent;
                                 break;
                             case "TextProperty":
                                 var txtData = (TextPropertyData)thisPD;
@@ -533,7 +607,7 @@ namespace UAssetGUI
                                         row.Cells[columnIndexer].ToolTipText = "Value";
                                         break;
                                     default:
-                                        throw new NotImplementedException("Unimplemented display for " + txtData.HistoryType.ToString());
+                                        break;
                                 }
                                 break;
                             case "NameProperty":
@@ -581,9 +655,9 @@ namespace UAssetGUI
                             case "SkeletalMeshSamplingLODBuiltData":
                                 break;
                             case "Box":
-                                var boxData = (BoxPropertyData)thisPD;
+                            case "Box2D":
+                            case "Box2f":
                                 row.Cells[++columnIndexer].Value = string.Empty;
-                                row.Cells[++columnIndexer].Value = boxData.IsValid;
                                 break;
                             case "MulticastDelegateProperty":
                                 var mdpData = (MulticastDelegatePropertyData)thisPD;
@@ -638,21 +712,21 @@ namespace UAssetGUI
                             case "Vector2D":
                                 var vector2DData = (Vector2DPropertyData)thisPD;
                                 row.Cells[++columnIndexer].Value = string.Empty;
-                                row.Cells[++columnIndexer].Value = vector2DData.X;
+                                row.Cells[++columnIndexer].Value = vector2DData.Value.X;
                                 row.Cells[columnIndexer].ToolTipText = "X";
-                                row.Cells[++columnIndexer].Value = vector2DData.Y;
+                                row.Cells[++columnIndexer].Value = vector2DData.Value.Y;
                                 row.Cells[columnIndexer].ToolTipText = "Y";
                                 break;
                             case "Vector4":
                                 var vector4DData = (Vector4PropertyData)thisPD;
                                 row.Cells[++columnIndexer].Value = string.Empty;
-                                row.Cells[++columnIndexer].Value = vector4DData.X;
+                                row.Cells[++columnIndexer].Value = vector4DData.Value.X;
                                 row.Cells[columnIndexer].ToolTipText = "X";
-                                row.Cells[++columnIndexer].Value = vector4DData.Y;
+                                row.Cells[++columnIndexer].Value = vector4DData.Value.Y;
                                 row.Cells[columnIndexer].ToolTipText = "Y";
-                                row.Cells[++columnIndexer].Value = vector4DData.Z;
+                                row.Cells[++columnIndexer].Value = vector4DData.Value.Z;
                                 row.Cells[columnIndexer].ToolTipText = "Z";
-                                row.Cells[++columnIndexer].Value = vector4DData.W;
+                                row.Cells[++columnIndexer].Value = vector4DData.Value.W;
                                 row.Cells[columnIndexer].ToolTipText = "W";
                                 break;
                             case "Plane":
@@ -708,6 +782,81 @@ namespace UAssetGUI
                                 row.Cells[++columnIndexer].Value = quatData.Value.W;
                                 row.Cells[columnIndexer].ToolTipText = "W";
                                 break;
+                            case "PerPlatformBool":
+                                {
+                                    var PerPlatformData = (PerPlatformBoolPropertyData)thisPD;
+                                    row.Cells[++columnIndexer].Value = string.Empty;
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 0 ? PerPlatformData.Value[0].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[0]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 1 ? PerPlatformData.Value[1].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[1]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 2 ? PerPlatformData.Value[2].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[2]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 3 ? PerPlatformData.Value[3].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[3]";
+                                }
+                                break;
+                            case "PerPlatformInt":
+                                {
+                                    var PerPlatformData = (PerPlatformIntPropertyData)thisPD;
+                                    row.Cells[++columnIndexer].Value = string.Empty;
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 0 ? PerPlatformData.Value[0].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[0]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 1 ? PerPlatformData.Value[1].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[1]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 2 ? PerPlatformData.Value[2].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[2]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 3 ? PerPlatformData.Value[3].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[3]";
+                                }
+                                break;
+                            case "PerPlatformFloat":
+                                {
+                                    var PerPlatformData = (PerPlatformFloatPropertyData)thisPD;
+                                    row.Cells[++columnIndexer].Value = string.Empty;
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 0 ? PerPlatformData.Value[0].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[0]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 1 ? PerPlatformData.Value[1].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[1]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 2 ? PerPlatformData.Value[2].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[2]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 3 ? PerPlatformData.Value[3].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[3]";
+                                }
+                                break;
+                            case "PerPlatformFrameRate":
+                                {
+                                    var PerPlatformData = (PerPlatformFrameRatePropertyData)thisPD;
+                                    row.Cells[++columnIndexer].Value = string.Empty;
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 0 ? PerPlatformData.Value[0].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[0]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 1 ? PerPlatformData.Value[1].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[1]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 2 ? PerPlatformData.Value[2].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[2]";
+                                    row.Cells[++columnIndexer].Value = PerPlatformData.Value.Length > 3 ? PerPlatformData.Value[3].ToString() : string.Empty;
+                                    row.Cells[columnIndexer].ToolTipText = "[3]";
+                                }
+                                break;
+                            case "NiagaraVariableBase":
+                            case "NiagaraVariable":
+                            case "NiagaraVariableWithOffset":
+                                row.Cells[++columnIndexer].Value = string.Empty;
+                                row.Cells[++columnIndexer].Value = ((NiagaraVariableBasePropertyData)thisPD).VariableName;
+                                row.Cells[columnIndexer].ToolTipText = "VariableName";
+                                row.Cells[++columnIndexer].Value = "NiagaraTypeDefinition"; // just for display really
+                                row.Cells[columnIndexer].ToolTipText = "TypeDef";
+                                if (thisPD.PropertyType.Value == "NiagaraVariable")
+                                {
+                                    row.Cells[++columnIndexer].Value = ((NiagaraVariablePropertyData)thisPD).VarData.ConvertByteArrayToString();
+                                    row.Cells[columnIndexer].ToolTipText = "VarData";
+                                }
+                                else if (thisPD.PropertyType.Value == "NiagaraVariableWithOffset")
+                                {
+                                    row.Cells[++columnIndexer].Value = ((NiagaraVariableWithOffsetPropertyData)thisPD).VariableOffset;
+                                    row.Cells[columnIndexer].ToolTipText = "VariableOffset";
+                                }
+                                break;
                             case "SmartName":
                                 var smartNameData = (SmartNamePropertyData)thisPD;
                                 row.Cells[++columnIndexer].Value = string.Empty;
@@ -720,7 +869,7 @@ namespace UAssetGUI
                                 }
                                 if (asset.GetCustomVersion<FAnimPhysObjectVersion>() < FAnimPhysObjectVersion.SmartNameRefactorForDeterministicCooking)
                                 {
-                                    row.Cells[++columnIndexer].Value = smartNameData.TempGUID == null ? FString.NullCase : smartNameData.TempGUID.ConvertToString();
+                                    row.Cells[++columnIndexer].Value = smartNameData.TempGUID.ConvertToString();
                                     row.Cells[columnIndexer].ToolTipText = "TempGUID";
                                 }
                                 break;
@@ -759,10 +908,10 @@ namespace UAssetGUI
 
                     long determinedOffset = asset.UseSeparateBulkDataFiles ? (thisPD.Offset - asset.Exports[0].SerialOffset) : thisPD.Offset;
 
-                    row.Cells[absoluteColumnIndexer + 9].Value = thisPD.DuplicationIndex;
-                    //row.Cells[absoluteColumnIndexer + 10].Value = thisPD.IsZero.ToString();
+                    row.Cells[absoluteColumnIndexer + 9].Value = thisPD.ArrayIndex;
                     row.Cells[absoluteColumnIndexer + 10].Value = determinedOffset < 0 ? "N/A" : determinedOffset.ToString();
                     row.Cells[absoluteColumnIndexer + 10].ReadOnly = true;
+                    row.Cells[absoluteColumnIndexer + 11].Value = thisPD.IsZero.ToString();
                     row.HeaderCell.Value = Convert.ToString(i);
                     rows.Add(row);
                 }
@@ -774,8 +923,19 @@ namespace UAssetGUI
             dataGridView1.Rows.AddRange(rows.ToArray());
         }
 
-        private PropertyData RowToPD(int rowNum, PropertyData original, bool namesAreDummies = false)
+        /// <summary>
+        /// Interpret a specific row in the current data grid view as a PropertyData instance and return it.
+        /// </summary>
+        /// <param name="rowNum">The row number.</param>
+        /// <param name="original">The original PropertyData instance that this row was intended to represent. Used to clone values not represented in the display.</param>
+        /// <param name="namesAreDummies">Whether or not the Name column is not serialized to disk (so shouldn't be appended to the name map).</param>
+        /// <param name="useUnversionedProperties">Whether or not unversioned properties are being used. If true, namesAreDummies is overriden to be true.</param>
+        /// <param name="expectedContext">Expected PropertySerializationContext, otherwise Normal.</param>
+        /// <returns>The interpreted PropertyData instance.</returns>
+        private PropertyData RowToPD(int rowNum, PropertyData original, bool namesAreDummies = false, bool useUnversionedProperties = false, PropertySerializationContext expectedContext = PropertySerializationContext.Normal)
         {
+            if (useUnversionedProperties) namesAreDummies = true;
+
             try
             {
                 DataGridViewRow row = dataGridView1.Rows[rowNum];
@@ -792,8 +952,8 @@ namespace UAssetGUI
                 if (nameB == null || typeB == null) return null;
                 if (!(nameB is string) || !(typeB is string)) return null;
 
-                string name = (string)nameB;
-                string type = (string)typeB;
+                string name = ((string)nameB)?.Trim();
+                string type = ((string)typeB)?.Trim();
                 if (name.Equals(string.Empty) || type.Equals(string.Empty)) return null;
 
                 FName nameName = namesAreDummies ? FName.DefineDummy(asset, name) : FName.FromString(asset, name);
@@ -809,7 +969,7 @@ namespace UAssetGUI
                 }
                 else
                 {
-                    switch (FName.FromString(asset, type).Value.Value)
+                    switch ((useUnversionedProperties ? FName.DefineDummy(asset, type) : FName.FromString(asset, type)).Value.Value)
                     {
                         case "TextProperty":
                             TextPropertyData decidedTextData = null;
@@ -824,7 +984,7 @@ namespace UAssetGUI
                             }
 
                             TextHistoryType histType = TextHistoryType.Base;
-                            if (transformB == null || value1B == null || !(value1B is string)) return null;
+                            if (transformB == null) return null;
                             if (transformB is string) Enum.TryParse((string)transformB, out histType);
 
                             decidedTextData.HistoryType = histType;
@@ -851,7 +1011,7 @@ namespace UAssetGUI
                                     decidedTextData.Value = (string)value1B == FString.NullCase ? null : FString.FromString((string)value1B);
                                     break;
                                 default:
-                                    throw new FormatException("Unimplemented text history type " + histType);
+                                    break;
                             }
 
                             if (value4B != null && value4B is string) Enum.TryParse((string)value4B, out decidedTextData.Flags);
@@ -892,26 +1052,30 @@ namespace UAssetGUI
                                 decidedRCKProperty = new RichCurveKeyPropertyData(nameName);
                             }
 
-                            if (transformB is string) Enum.TryParse((string)transformB, out decidedRCKProperty.InterpMode);
-                            if (value1B is string) Enum.TryParse((string)value1B, out decidedRCKProperty.TangentMode);
+                            FRichCurveKey nuevo = decidedRCKProperty.Value;
 
-                            if (value2B is string) float.TryParse((string)value2B, out decidedRCKProperty.Time);
-                            if (value2B is int) decidedRCKProperty.Time = (float)(int)value2B;
-                            if (value2B is float) decidedRCKProperty.Time = (float)value2B;
-                            if (value3B is string) float.TryParse((string)value3B, out decidedRCKProperty.Value);
-                            if (value3B is int) decidedRCKProperty.Value = (float)(int)value3B;
-                            if (value3B is float) decidedRCKProperty.Value = (float)value3B;
-                            if (value4B is string) float.TryParse((string)value4B, out decidedRCKProperty.ArriveTangent);
-                            if (value4B is int) decidedRCKProperty.ArriveTangent = (float)(int)value4B;
-                            if (value4B is float) decidedRCKProperty.ArriveTangent = (float)value4B;
-                            if (value5B is string) float.TryParse((string)value5B, out decidedRCKProperty.LeaveTangent);
-                            if (value5B is int) decidedRCKProperty.LeaveTangent = (float)(int)value5B;
-                            if (value5B is float) decidedRCKProperty.LeaveTangent = (float)value5B;
+                            if (transformB is string) Enum.TryParse((string)transformB, out nuevo.InterpMode);
+                            if (value1B is string) Enum.TryParse((string)value1B, out nuevo.TangentMode);
+
+                            if (value2B is string) float.TryParse((string)value2B, out nuevo.Time);
+                            if (value2B is int) nuevo.Time = (float)(int)value2B;
+                            if (value2B is float) nuevo.Time = (float)value2B;
+                            if (value3B is string) float.TryParse((string)value3B, out nuevo.Value);
+                            if (value3B is int) nuevo.Value = (float)(int)value3B;
+                            if (value3B is float) nuevo.Value = (float)value3B;
+                            if (value4B is string) float.TryParse((string)value4B, out nuevo.ArriveTangent);
+                            if (value4B is int) nuevo.ArriveTangent = (float)(int)value4B;
+                            if (value4B is float) nuevo.ArriveTangent = (float)value4B;
+                            if (value5B is string) float.TryParse((string)value5B, out nuevo.LeaveTangent);
+                            if (value5B is int) nuevo.LeaveTangent = (float)(int)value5B;
+                            if (value5B is float) nuevo.LeaveTangent = (float)value5B;
+
+                            decidedRCKProperty.Value = nuevo;
 
                             finalProp = decidedRCKProperty;
                             break;
                         default:
-                            PropertyData newThing = MainSerializer.TypeToClass(FName.FromString(asset, type), nameName, null, null, asset);
+                            PropertyData newThing = MainSerializer.TypeToClass(useUnversionedProperties ? FName.DefineDummy(asset, type) : FName.FromString(asset, type), nameName, null, null, null, asset);
                             if (original != null && original.GetType() == newThing.GetType())
                             {
                                 newThing = original;
@@ -926,16 +1090,24 @@ namespace UAssetGUI
                             if (transformB != null) existingStrings[4] = Convert.ToString(transformB);
 
                             newThing.FromString(existingStrings, asset);
+
+                            // override for enums if needed to ensure Value is not dummy
+                            if (namesAreDummies && newThing is EnumPropertyData newThingEnum && expectedContext != PropertySerializationContext.Normal)
+                            {
+                                // convert Value from dummy to non-dummy
+                                newThingEnum.Value = FName.FromString(asset, newThingEnum.Value.ToString());
+                            }
+
                             finalProp = newThing;
                             break;
                     }
                 }
 
-                string duplicationIndex = row.Cells[row.Cells.Count - 3].Value.ToString();
-                //string isZero = row.Cells[row.Cells.Count - 3].Value.ToString();
+                string ArrayIndex = row.Cells[row.Cells.Count - 4].Value.ToString();
+                string isZero = row.Cells[row.Cells.Count - 2].Value.ToString();
 
-                int.TryParse(duplicationIndex, out finalProp.DuplicationIndex);
-                //finalProp.IsZero = (isZero.ToLowerInvariant() == "true" || isZero == "1");
+                int.TryParse(ArrayIndex, out finalProp.ArrayIndex);
+                finalProp.IsZero = (isZero.ToLowerInvariant() == "true" || isZero == "1");
                 return finalProp;
             }
             catch (Exception)
@@ -1047,6 +1219,7 @@ namespace UAssetGUI
 
             dataGridView1.BackgroundColor = UAGPalette.DataGridViewActiveColor;
             readyToSave = false;
+            dirtySinceLastLoad = false;
 
             origForm.ResetCurrentDataGridViewStrip();
 
@@ -1061,7 +1234,7 @@ namespace UAssetGUI
                     dataGridView1.Rows.Add(new object[] { "PackageGuid", asset.PackageGuid.ConvertToString() });
                     dataGridView1.Rows.Add(new object[] { "PackageFlags", asset.PackageFlags.ToString() });
                     dataGridView1.Rows.Add(new object[] { "PackageSource", asset.PackageSource.ToString() });
-                    dataGridView1.Rows.Add(new object[] { "FolderName", asset.FolderName.Value });
+                    dataGridView1.Rows.Add(new object[] { asset.ObjectVersionUE5 >= ObjectVersionUE5.ADD_SOFTOBJECTPATH_LIST ? "PackageName" : "FolderName", asset.FolderName.Value });
 
                     dataGridView1.Rows[0].Cells[0].ToolTipText = "The package file version number when this package was saved. Unrelated to imports.";
                     dataGridView1.Rows[1].Cells[0].ToolTipText = "Should this asset not serialize its engine and custom versions?";
@@ -1069,7 +1242,7 @@ namespace UAssetGUI
                     dataGridView1.Rows[3].Cells[0].ToolTipText = "Current ID for this package. Effectively unused.";
                     dataGridView1.Rows[4].Cells[0].ToolTipText = "The flags for this package.";
                     dataGridView1.Rows[5].Cells[0].ToolTipText = "Value that is used to determine if the package was saved by Epic, a licensee, modder, etc.";
-                    dataGridView1.Rows[6].Cells[0].ToolTipText = "The Generic Browser folder name that this package lives in. Usually \"None\" in cooked assets.";
+                    dataGridView1.Rows[6].Cells[0].ToolTipText = asset.ObjectVersionUE5 >= ObjectVersionUE5.ADD_SOFTOBJECTPATH_LIST ? "The package name the file was last saved with." : "The Generic Browser folder name that this package lives in. Usually \"None\" in cooked assets.";
 
                     for (int i = 0; i < dataGridView1.Rows.Count; i++)
                     {
@@ -1102,6 +1275,18 @@ namespace UAssetGUI
                         }
                     }
                     //((Form1)dataGridView1.Parent).CurrentDataGridViewStrip = ((Form1)dataGridView1.Parent).nameMapContext;
+                    break;
+                case TableHandlerMode.SoftObjectPathList:
+                    AddColumns(new string[] { "PackageName", "AssetName", "SubPathString", "" });
+
+                    for (int num = 0; num < asset.SoftObjectPathList.Count; num++)
+                    {
+                        string a = asset.SoftObjectPathList[num].AssetPath.PackageName == null ? FString.NullCase : asset.SoftObjectPathList[num].AssetPath.PackageName.ToString();
+                        string b = asset.SoftObjectPathList[num].AssetPath.AssetName == null ? FString.NullCase : asset.SoftObjectPathList[num].AssetPath.AssetName.ToString();
+                        string c = asset.SoftObjectPathList[num].SubPathString == null ? FString.NullCase : asset.SoftObjectPathList[num].SubPathString.ToString();
+                        dataGridView1.Rows.Add(a, b, c);
+                        dataGridView1.Rows[num].HeaderCell.Value = Convert.ToString(num);
+                    }
                     break;
                 case TableHandlerMode.Imports:
                     AddColumns(new string[] { "ClassPackage", "ClassName", "OuterIndex", "ObjectName", "bImportOptional", "" });
@@ -1172,6 +1357,7 @@ namespace UAssetGUI
                 case TableHandlerMode.DependsMap:
                     AddColumns(new string[] { "Export Index", "Value", "" });
 
+                    if (asset.DependsMap == null) break;
                     for (int num = 0; num < asset.DependsMap.Count; num++)
                     {
                         for (int num2 = 0; num2 < asset.DependsMap[num].Length; num2++)
@@ -1183,9 +1369,10 @@ namespace UAssetGUI
                 case TableHandlerMode.SoftPackageReferences:
                     AddColumns(new string[] { "Value", "" });
 
+                    if (asset.SoftPackageReferenceList == null) break;
                     for (int num = 0; num < asset.SoftPackageReferenceList.Count; num++)
                     {
-                        dataGridView1.Rows.Add(asset.SoftPackageReferenceList[num]);
+                        dataGridView1.Rows.Add(asset.SoftPackageReferenceList[num]?.ToString() ?? FString.NullCase);
                     }
                     break;
                 case TableHandlerMode.WorldTileInfo:
@@ -1231,9 +1418,20 @@ namespace UAssetGUI
                     dataGridView1.AllowUserToAddRows = false;
                     dataGridView1.ReadOnly = true;
                     break;
+                case TableHandlerMode.DataResources:
+                    AddColumns(new string[] { "Index", "Flags", "SerialOffset", "DuplicateSerialOffset", "SerialSize", "RawSize", "OuterIndex", "LegacyBulkDataFlags", "" });
+
+                    if (asset.DataResources == null) break;
+                    for (int num = 0; num < asset.DataResources.Count; num++)
+                    {
+                        var dataResource = asset.DataResources[num];
+                        dataGridView1.Rows.Add(new object[] { num, dataResource.Flags.ToString(), dataResource.SerialOffset.ToString(), dataResource.DuplicateSerialOffset.ToString(), dataResource.SerialSize.ToString(), dataResource.RawSize.ToString(), dataResource.OuterIndex.ToString(), dataResource.LegacyBulkDataFlags.ToString() });
+                    }
+                    break;
                 case TableHandlerMode.CustomVersionContainer:
                     AddColumns(new string[] { "Name", "Version", "" });
 
+                    if (asset.CustomVersionContainer == null) break;
                     for (int num = 0; num < asset.CustomVersionContainer.Count; num++)
                     {
                         dataGridView1.Rows.Add(new object[] { asset.CustomVersionContainer[num].FriendlyName == null ? Convert.ToString(asset.CustomVersionContainer[num].Key) : asset.CustomVersionContainer[num].FriendlyName, asset.CustomVersionContainer[num].Version });
@@ -1242,21 +1440,55 @@ namespace UAssetGUI
                 case TableHandlerMode.ExportData:
                     if (treeView1.SelectedNode is PointingTreeNode pointerNode)
                     {
-                        AddColumns(new string[] { "Name", "Type", "Variant", "Value", "Value 2", "Value 3", "Value 4", "Value 5", "DupIndex", "Serial Offset", "" });
+                        AddColumns(new string[] { "Name", "Type", "Variant", "Value", "Value 2", "Value 3", "Value 4", "Value 5", "ArrayIndex", "Serial Offset", "Is Zero", "" });
                         bool standardRendering = true;
                         PropertyData[] renderingArr = null;
 
-                        if (pointerNode.Type == PointingTreeNodeType.ByteArray)
+                        if (pointerNode.Type == PointingTreeNodeType.ByteArray || pointerNode.Type == PointingTreeNodeType.KismetByteArray)
                         {
                             Control currentlyFocusedControl = origForm.ActiveControl;
                             dataGridView1.Visible = false;
                             byteView1.SetBytes(new byte[] { });
-                            byteView1.SetBytes(pointerNode.Pointer is RawExport ? ((RawExport)pointerNode.Pointer).Data : ((NormalExport)pointerNode.Pointer).Extras);
+                            if (pointerNode.Type == PointingTreeNodeType.KismetByteArray)
+                            {
+                                byteView1.SetBytes(((StructExport)pointerNode.Pointer).ScriptBytecodeRaw);
+                            }
+                            else if (pointerNode.Pointer is RawExport)
+                            {
+                                byteView1.SetBytes(((RawExport)pointerNode.Pointer).Data);
+                            }
+                            else if (pointerNode.Pointer is NormalExport)
+                            {
+                                byteView1.SetBytes(((NormalExport)pointerNode.Pointer).Extras);
+                            }
                             byteView1.Visible = true;
                             origForm.importBinaryData.Visible = true;
                             origForm.exportBinaryData.Visible = true;
                             origForm.setBinaryData.Visible = true;
                             currentlyFocusedControl.Focus();
+                            origForm.ForceResize();
+                            standardRendering = false;
+                        }
+                        else if (pointerNode.Type == PointingTreeNodeType.Kismet)
+                        {
+                            var bytecode = ((StructExport)pointerNode.Pointer).ScriptBytecode;
+                            Control currentlyFocusedControl1 = origForm.ActiveControl;
+                            if (UAGConfig.Data.EnablePrettyBytecode)
+                            {
+                                UAssetAPI.Kismet.KismetSerializer.asset = asset;
+                                dataGridView1.Visible = false;
+                                jsonView.Text = new JObject(new JProperty("Script", SerializeScript(bytecode))).ToString();
+                                jsonView.Visible = true;
+                                jsonView.ReadOnly = true;
+                            }
+                            else
+                            {
+                                dataGridView1.Visible = false;
+                                jsonView.Text = asset.SerializeJsonObject(bytecode, true);
+                                jsonView.Visible = true;
+                                jsonView.ReadOnly = false;
+                            }
+                            currentlyFocusedControl1.Focus();
                             origForm.ForceResize();
                             standardRendering = false;
                         }
@@ -1277,6 +1509,18 @@ namespace UAssetGUI
                                                 }
                                             }
                                             renderingArr = usCategory.Data.ToArray();
+                                            break;
+                                        case PointingTreeNodeType.UserDefinedStructData:
+                                            var usCategoryUDS = (UserDefinedStructExport)usCategory;
+                                            for (int num = 0; num < usCategoryUDS.StructData.Count; num++)
+                                            {
+                                                if (usCategoryUDS.StructData[num] == null)
+                                                {
+                                                    usCategoryUDS.StructData.RemoveAt(num);
+                                                    num--;
+                                                }
+                                            }
+                                            renderingArr = usCategoryUDS.StructData.ToArray();
                                             break;
                                         case PointingTreeNodeType.StructData:
                                             dataGridView1.Columns.Clear();
@@ -1564,8 +1808,8 @@ namespace UAssetGUI
                                             FName mapValueType = usMap.ValueType;
                                             if (usMap.Value.Count != 0)
                                             {
-                                                mapKeyType = new FName(asset, usMap.Value.Keys.ElementAt(0).PropertyType);
-                                                mapValueType = new FName(asset, usMap.Value[0].PropertyType);
+                                                mapKeyType = asset.HasUnversionedProperties ? FName.DefineDummy(asset, usMap.Value.Keys.ElementAt(0).PropertyType) : new FName(asset, usMap.Value.Keys.ElementAt(0).PropertyType);
+                                                mapValueType = asset.HasUnversionedProperties ? FName.DefineDummy(asset, usMap.Value[0].PropertyType) : new FName(asset, usMap.Value[0].PropertyType);
                                             }
 
                                             List<DataGridViewRow> rows = new List<DataGridViewRow>();
@@ -1615,13 +1859,114 @@ namespace UAssetGUI
                                     }
                                     standardRendering = false;
                                     break;
+                                case BoxPropertyData box1:
+                                    {
+                                        List<DataGridViewRow> rows = new List<DataGridViewRow>();
+
+                                        DataGridViewRow row = new DataGridViewRow();
+                                        row.CreateCells(dataGridView1);
+                                        row.Cells[0].Value = "Min";
+                                        row.Cells[1].Value = box1.Value.Min.X;
+                                        row.Cells[2].Value = box1.Value.Min.Y;
+                                        row.Cells[3].Value = box1.Value.Min.Z;
+                                        row.HeaderCell.Value = Convert.ToString(0);
+                                        rows.Add(row);
+
+                                        row = new DataGridViewRow();
+                                        row.CreateCells(dataGridView1);
+                                        row.Cells[0].Value = "Max";
+                                        row.Cells[1].Value = box1.Value.Max.X;
+                                        row.Cells[2].Value = box1.Value.Max.Y;
+                                        row.Cells[3].Value = box1.Value.Max.Z;
+                                        row.HeaderCell.Value = Convert.ToString(1);
+                                        rows.Add(row);
+
+                                        row = new DataGridViewRow();
+                                        row.CreateCells(dataGridView1);
+                                        row.Cells[0].Value = "IsValid";
+                                        row.Cells[1].Value = box1.Value.IsValid > 0;
+                                        row.HeaderCell.Value = Convert.ToString(2);
+                                        rows.Add(row);
+
+                                        dataGridView1.Rows.AddRange(rows.ToArray());
+                                    }
+
+                                    dataGridView1.AllowUserToAddRows = false;
+                                    standardRendering = false;
+                                    break;
+                                case Box2DPropertyData box1:
+                                    {
+                                        List<DataGridViewRow> rows = new List<DataGridViewRow>();
+
+                                        DataGridViewRow row = new DataGridViewRow();
+                                        row.CreateCells(dataGridView1);
+                                        row.Cells[0].Value = "Min";
+                                        row.Cells[1].Value = box1.Value.Min.X;
+                                        row.Cells[2].Value = box1.Value.Min.Y;
+                                        row.HeaderCell.Value = Convert.ToString(0);
+                                        rows.Add(row);
+
+                                        row = new DataGridViewRow();
+                                        row.CreateCells(dataGridView1);
+                                        row.Cells[0].Value = "Max";
+                                        row.Cells[1].Value = box1.Value.Max.X;
+                                        row.Cells[2].Value = box1.Value.Max.Y;
+                                        row.HeaderCell.Value = Convert.ToString(1);
+                                        rows.Add(row);
+
+                                        row = new DataGridViewRow();
+                                        row.CreateCells(dataGridView1);
+                                        row.Cells[0].Value = "IsValid";
+                                        row.Cells[1].Value = box1.Value.IsValid > 0;
+                                        row.HeaderCell.Value = Convert.ToString(2);
+                                        rows.Add(row);
+
+                                        dataGridView1.Rows.AddRange(rows.ToArray());
+                                    }
+
+                                    dataGridView1.AllowUserToAddRows = false;
+                                    standardRendering = false;
+                                    break;
+                                case Box2fPropertyData box1:
+                                    {
+                                        List<DataGridViewRow> rows = new List<DataGridViewRow>();
+
+                                        DataGridViewRow row = new DataGridViewRow();
+                                        row.CreateCells(dataGridView1);
+                                        row.Cells[0].Value = "Min";
+                                        row.Cells[1].Value = box1.Value.Min.X;
+                                        row.Cells[2].Value = box1.Value.Min.Y;
+                                        row.HeaderCell.Value = Convert.ToString(0);
+                                        rows.Add(row);
+
+                                        row = new DataGridViewRow();
+                                        row.CreateCells(dataGridView1);
+                                        row.Cells[0].Value = "Max";
+                                        row.Cells[1].Value = box1.Value.Max.X;
+                                        row.Cells[2].Value = box1.Value.Max.Y;
+                                        row.HeaderCell.Value = Convert.ToString(1);
+                                        rows.Add(row);
+
+                                        row = new DataGridViewRow();
+                                        row.CreateCells(dataGridView1);
+                                        row.Cells[0].Value = "IsValid";
+                                        row.Cells[1].Value = box1.Value.IsValid > 0;
+                                        row.HeaderCell.Value = Convert.ToString(2);
+                                        rows.Add(row);
+
+                                        dataGridView1.Rows.AddRange(rows.ToArray());
+                                    }
+
+                                    dataGridView1.AllowUserToAddRows = false;
+                                    standardRendering = false;
+                                    break;
                                 case PointingDictionaryEntry usDictEntry:
                                     dataGridView1.AllowUserToAddRows = false;
                                     var ourKey = usDictEntry.Entry.Key;
                                     var ourValue = usDictEntry.Entry.Value;
                                     if (ourKey != null) ourKey.Name = FName.DefineDummy(asset, "Key");
                                     if (ourValue != null) ourValue.Name = FName.DefineDummy(asset, "Value");
-                                    renderingArr = new PropertyData[2] { ourKey, ourValue };
+                                    renderingArr = [ourKey, ourValue];
                                     break;
                                 case FDelegate[] usRealMDArr:
                                     for (int i = 0; i < usRealMDArr.Length; i++)
@@ -1686,6 +2031,7 @@ namespace UAssetGUI
         public void Save(bool forceNewLoad) // Reads from the table and updates the asset data as needed
         {
             if (!readyToSave) return;
+            if (dataGridView1?.Rows == null) return;
 
             switch (mode)
             {
@@ -1716,6 +2062,7 @@ namespace UAssetGUI
                                 if (uint.TryParse(propertyValue, out uint newPackageSource)) asset.PackageSource = newPackageSource;
                                 break;
                             case "FolderName":
+                            case "PackageName":
                                 asset.FolderName = FString.FromString(propertyValue, Encoding.UTF8.GetByteCount(propertyValue) == propertyValue.Length ? Encoding.ASCII : Encoding.Unicode);
                                 break;
                         }
@@ -1751,6 +2098,27 @@ namespace UAssetGUI
                             finalStr.IsCasePreserving = isCasePreserving;
                             asset.AddNameReference(finalStr, true);
                         }
+                    }
+                    break;
+                case TableHandlerMode.SoftObjectPathList:
+                    if (asset.SoftObjectPathList == null) asset.SoftObjectPathList = new List<FSoftObjectPath>();
+
+                    asset.SoftObjectPathList.Clear();
+                    foreach (DataGridViewRow row in dataGridView1.Rows)
+                    {
+                        string a = row.Cells[0].Value as string;
+                        string b = row.Cells[1].Value as string;
+                        string c = row.Cells[2].Value as string;
+
+                        if (a == FString.NullCase) a = null;
+                        if (b == FString.NullCase) b = null;
+                        if (c == FString.NullCase) c = null;
+
+                        // if all empty, then remove (invalid, probably just the last row)
+                        if (a == null && b == null && c == null) continue;
+
+                        FSoftObjectPath nuevo = new FSoftObjectPath(FName.FromString(asset, a), FName.FromString(asset, b), FString.FromString(c));
+                        asset.SoftObjectPathList.Add(nuevo);
                     }
                     break;
                 case TableHandlerMode.Imports:
@@ -1808,6 +2176,8 @@ namespace UAssetGUI
                         ExportDetailsParseType.EObjectFlags,
                         ExportDetailsParseType.Long,
                         ExportDetailsParseType.Long,
+                        ExportDetailsParseType.Long,
+                        ExportDetailsParseType.Long,
                         ExportDetailsParseType.Bool,
                         ExportDetailsParseType.Bool,
                         ExportDetailsParseType.Bool,
@@ -1832,7 +2202,7 @@ namespace UAssetGUI
                         if (asset.Exports.Count <= rowNum)
                         {
                             // If we add a new category, we'll make a new NormalExport (None-terminated UProperty list). If you want to make some other kind of export, you'll need to do it manually with UAssetAPI
-                            var newCat = new NormalExport(asset, new byte[4]);
+                            var newCat = new NormalExport(asset, Array.Empty<Byte>());
                             newCat.Data = new List<PropertyData>();
                             asset.Exports.Add(newCat);
                             isNewExport = true;
@@ -1874,7 +2244,7 @@ namespace UAssetGUI
                                     break;
                                 case ExportDetailsParseType.FName:
                                     settingVal = null;
-                                    if (currentVal is string rawFName) // blah(0)
+                                    if (currentVal is string rawFName)
                                     {
                                         settingVal = FName.FromString(asset, rawFName);
                                     }
@@ -1990,7 +2360,7 @@ namespace UAssetGUI
 
                     break;
                 case TableHandlerMode.DependsMap:
-                    asset.DependsMap = new List<int[]>();
+                    var newDM = new List<int[]>();
                     foreach (DataGridViewRow row in dataGridView1.Rows)
                     {
                         int[] vals = new int[2];
@@ -2010,30 +2380,59 @@ namespace UAssetGUI
 
                         if (vals[0] == 0) continue;
 
-                        if (asset.DependsMap.Count > vals[0])
+                        if (newDM.Count > vals[0])
                         {
-                            var arr = asset.DependsMap[vals[0]];
+                            var arr = newDM[vals[0]];
                             Array.Resize(ref arr, arr.Length + 1);
                             arr[arr.Length - 1] = vals[1];
-                            asset.DependsMap[vals[0]] = arr;
+                            newDM[vals[0]] = arr;
                         }
                         else
                         {
-                            asset.DependsMap.Insert(vals[0], new int[] { vals[1] });
+                            newDM.Insert(vals[0], new int[] { vals[1] });
                         }
                     }
+
+                    int numDependsInts = 0;
+                    foreach (var entry in newDM) numDependsInts += entry.Length;
+
+                    if (asset.DependsMap == null && numDependsInts == 0) break;
+                    asset.DependsMap = newDM;
                     break;
                 case TableHandlerMode.SoftPackageReferences:
-                    asset.SoftPackageReferenceList = new List<FString>();
+                    var newSPR = new List<FString>();
                     foreach (DataGridViewRow row in dataGridView1.Rows)
                     {
                         string strVal = (string)row.Cells[0].Value;
-                        if (!string.IsNullOrEmpty(strVal)) asset.SoftPackageReferenceList.Add(FString.FromString(strVal));
+                        if (!string.IsNullOrEmpty(strVal)) newSPR.Add(FString.FromString(strVal));
                     }
+
+                    if (asset.SoftPackageReferenceList == null && newSPR.Count == 0) break;
+                    asset.SoftPackageReferenceList = newSPR;
                     break;
                 case TableHandlerMode.WorldTileInfo:
                     // Modification is disabled
 
+                    break;
+                case TableHandlerMode.DataResources:
+                    var newDR = new List<FObjectDataResource>();
+                    foreach (DataGridViewRow row in dataGridView1.Rows)
+                    {
+                        if (row.Cells.Count < 8 || string.IsNullOrWhiteSpace(row.Cells[0]?.Value?.ToString())) continue;
+                        EObjectDataResourceFlags.TryParse(row.Cells[1]?.Value?.ToString(), out EObjectDataResourceFlags flags);
+                        long.TryParse(row.Cells[2]?.Value?.ToString(), out long SerialOffset);
+                        long.TryParse(row.Cells[3]?.Value?.ToString(), out long DuplicateSerialOffset);
+                        long.TryParse(row.Cells[4]?.Value?.ToString(), out long SerialSize);
+                        long.TryParse(row.Cells[5]?.Value?.ToString(), out long RawSize);
+                        int.TryParse(row.Cells[6]?.Value?.ToString(), out int OuterIndex);
+                        uint.TryParse(row.Cells[7]?.Value?.ToString(), out uint LegacyBulkDataFlags);
+
+                        FObjectDataResource nuevo = new FObjectDataResource(flags, SerialOffset, DuplicateSerialOffset, SerialSize, RawSize, new FPackageIndex(OuterIndex), LegacyBulkDataFlags);
+                        newDR.Add(nuevo);
+                    }
+
+                    if (asset.DataResources == null && newDR.Count == 0) break;
+                    asset.DataResources = newDR;
                     break;
                 case TableHandlerMode.CustomVersionContainer:
                     asset.CustomVersionContainer = new List<CustomVersion>();
@@ -2093,8 +2492,8 @@ namespace UAssetGUI
                             FName mapValueType = usMap.ValueType;
                             if (usMap.Value.Count != 0)
                             {
-                                mapKeyType = new FName(asset, usMap.Value.Keys.ElementAt(0).PropertyType);
-                                mapValueType = new FName(asset, usMap.Value[0].PropertyType);
+                                mapKeyType = asset.HasUnversionedProperties ? FName.DefineDummy(asset, usMap.Value.Keys.ElementAt(0).PropertyType) : new FName(asset, usMap.Value.Keys.ElementAt(0).PropertyType);
+                                mapValueType = asset.HasUnversionedProperties ? FName.DefineDummy(asset, usMap.Value[0].PropertyType) : new FName(asset, usMap.Value[0].PropertyType);
                             }
 
                             if (dataGridView1.Rows.Count > 0)
@@ -2125,8 +2524,8 @@ namespace UAssetGUI
                                 }
                                 else
                                 {
-                                    var newKeyProp = MainSerializer.TypeToClass(mapKeyType, usMap.Name, null, null, asset);
-                                    var newValProp = MainSerializer.TypeToClass(mapValueType, usMap.Name, null, null, asset);
+                                    var newKeyProp = MainSerializer.TypeToClass(mapKeyType, usMap.Name, null, null, null, asset);
+                                    var newValProp = MainSerializer.TypeToClass(mapValueType, usMap.Name, null, null, null, asset);
                                     if (newKeyProp is StructPropertyData) ((StructPropertyData)newKeyProp).StructType = FName.DefineDummy(asset, "Generic");
                                     if (newValProp is StructPropertyData) ((StructPropertyData)newValProp).StructType = FName.DefineDummy(asset, "Generic");
                                     newData.Add(newKeyProp, newValProp);
@@ -2142,19 +2541,133 @@ namespace UAssetGUI
                             List<PropertyData> newData = new List<PropertyData>();
                             for (int i = 0; i < dataGridView1.Rows.Count; i++)
                             {
-                                PropertyData val = RowToPD(i, usStruct.Value.ElementAtOrDefault(i));
+                                PropertyData val = RowToPD(i, usStruct.Value.ElementAtOrDefault(i), false, asset.HasUnversionedProperties);
+                                if (val == null)
+                                {
+                                    dirtySinceLastLoad = true;
+                                    newData.Add(null);
+                                    continue;
+                                    // deliberately do not increment newCount
+                                }
                                 newData.Add(val);
-                                if (val != null) newCount++;
+                                newCount++;
                             }
+                            if (newData[newData.Count - 1] == null) newData.RemoveAt(newData.Count - 1);
                             usStruct.Value = newData;
 
                             string decidedName = usStruct.Name.Value.Value;
                             if (((PointingTreeNode)pointerNode.Parent).Pointer is PropertyData && ((PropertyData)((PointingTreeNode)pointerNode.Parent).Pointer).Name.Equals(decidedName)) decidedName = usStruct.StructType.Value.Value;
                             pointerNode.Text = decidedName + " (" + newCount + ")";
                         }
-                        else if (pointerNode.Pointer is ClassExport usBGCCat)
+                        else if (pointerNode.Pointer is BoxPropertyData box1)
                         {
-                            // No writing here
+                            FVector min = new();
+                            FVector max = new();
+                            byte isValid = 0;
+                            for (int i = 0; i < dataGridView1.Rows.Count; i++)
+                            {
+                                if (dataGridView1.Rows[i].Cells.Count < 1) continue;
+                                string name = dataGridView1.Rows[i].Cells[0].Value.ToString().Trim();
+                                switch (name)
+                                {
+                                    case "Min":
+                                        if (dataGridView1.Rows[i].Cells.Count < 4) continue;
+                                        {
+                                            double.TryParse(dataGridView1.Rows[i].Cells[1].Value.ToString(), out double val1);
+                                            double.TryParse(dataGridView1.Rows[i].Cells[2].Value.ToString(), out double val2);
+                                            double.TryParse(dataGridView1.Rows[i].Cells[3].Value.ToString(), out double val3);
+                                            min = new(val1, val2, val3);
+                                        }
+                                        break;
+                                    case "Max":
+                                        if (dataGridView1.Rows[i].Cells.Count < 4) continue;
+                                        {
+                                            double.TryParse(dataGridView1.Rows[i].Cells[1].Value.ToString(), out double val1);
+                                            double.TryParse(dataGridView1.Rows[i].Cells[2].Value.ToString(), out double val2);
+                                            double.TryParse(dataGridView1.Rows[i].Cells[3].Value.ToString(), out double val3);
+                                            max = new(val1, val2, val3);
+                                        }
+                                        break;
+                                    case "IsValid":
+                                        if (dataGridView1.Rows[i].Cells.Count < 2) continue;
+                                        var val = dataGridView1.Rows[i].Cells[1].Value.ToString();
+                                        isValid = (val.Equals("1") || val.ToLowerInvariant().Equals("true")) ? (byte)1 : (byte)0;
+                                        break;
+                                }
+                            }
+                            box1.Value = new TBox<FVector>(min, max, isValid);
+                        }
+                        else if (pointerNode.Pointer is Box2DPropertyData box2)
+                        {
+                            FVector2D min = new();
+                            FVector2D max = new();
+                            byte isValid = 0;
+                            for (int i = 0; i < dataGridView1.Rows.Count; i++)
+                            {
+                                if (dataGridView1.Rows[i].Cells.Count < 1) continue;
+                                string name = dataGridView1.Rows[i].Cells[0].Value.ToString().Trim();
+                                switch (name)
+                                {
+                                    case "Min":
+                                        if (dataGridView1.Rows[i].Cells.Count < 3) continue;
+                                        {
+                                            double.TryParse(dataGridView1.Rows[i].Cells[1].Value.ToString(), out double val1);
+                                            double.TryParse(dataGridView1.Rows[i].Cells[2].Value.ToString(), out double val2);
+                                            min = new(val1, val2);
+                                        }
+                                        break;
+                                    case "Max":
+                                        if (dataGridView1.Rows[i].Cells.Count < 3) continue;
+                                        {
+                                            double.TryParse(dataGridView1.Rows[i].Cells[1].Value.ToString(), out double val1);
+                                            double.TryParse(dataGridView1.Rows[i].Cells[2].Value.ToString(), out double val2);
+                                            max = new(val1, val2);
+                                        }
+                                        break;
+                                    case "IsValid":
+                                        if (dataGridView1.Rows[i].Cells.Count < 2) continue;
+                                        var val = dataGridView1.Rows[i].Cells[1].Value.ToString();
+                                        isValid = (val.Equals("1") || val.ToLowerInvariant().Equals("true")) ? (byte)1 : (byte)0;
+                                        break;
+                                }
+                            }
+                            box2.Value = new TBox<FVector2D>(min, max, isValid);
+                        }
+                        else if (pointerNode.Pointer is Box2fPropertyData box3)
+                        {
+                            FVector2f min = new();
+                            FVector2f max = new();
+                            byte isValid = 0;
+                            for (int i = 0; i < dataGridView1.Rows.Count; i++)
+                            {
+                                if (dataGridView1.Rows[i].Cells.Count < 1) continue;
+                                string name = dataGridView1.Rows[i].Cells[0].Value.ToString().Trim();
+                                switch (name)
+                                {
+                                    case "Min":
+                                        if (dataGridView1.Rows[i].Cells.Count < 3) continue;
+                                        {
+                                            float.TryParse(dataGridView1.Rows[i].Cells[1].Value.ToString(), out float val1);
+                                            float.TryParse(dataGridView1.Rows[i].Cells[2].Value.ToString(), out float val2);
+                                            min = new(val1, val2);
+                                        }
+                                        break;
+                                    case "Max":
+                                        if (dataGridView1.Rows[i].Cells.Count < 3) continue;
+                                        {
+                                            float.TryParse(dataGridView1.Rows[i].Cells[1].Value.ToString(), out float val1);
+                                            float.TryParse(dataGridView1.Rows[i].Cells[2].Value.ToString(), out float val2);
+                                            max = new(val1, val2);
+                                        }
+                                        break;
+                                    case "IsValid":
+                                        if (dataGridView1.Rows[i].Cells.Count < 2) continue;
+                                        var val = dataGridView1.Rows[i].Cells[1].Value.ToString();
+                                        isValid = (val.Equals("1") || val.ToLowerInvariant().Equals("true")) ? (byte)1 : (byte)0;
+                                        break;
+                                }
+                            }
+                            box3.Value = new TBox<FVector2f>(min, max, isValid);
                         }
                         else if (pointerNode.Pointer is NormalExport usCat)
                         {
@@ -2164,9 +2677,10 @@ namespace UAssetGUI
                                     List<PropertyData> newData = new List<PropertyData>();
                                     for (int i = 0; i < dataGridView1.Rows.Count; i++)
                                     {
-                                        PropertyData val = RowToPD(i, usCat.Data.ElementAtOrDefault(i));
+                                        PropertyData val = RowToPD(i, usCat.Data.ElementAtOrDefault(i), false, asset.HasUnversionedProperties);
                                         if (val == null)
                                         {
+                                            dirtySinceLastLoad = true;
                                             newData.Add(null);
                                             continue;
                                         }
@@ -2175,6 +2689,24 @@ namespace UAssetGUI
                                     if (newData[newData.Count - 1] == null) newData.RemoveAt(newData.Count - 1);
                                     usCat.Data = newData;
                                     pointerNode.Text = (usCat.ClassIndex.IsImport() ? usCat.ClassIndex.ToImport(asset).ObjectName.Value.Value : usCat.ClassIndex.Index.ToString()) + " (" + usCat.Data.Count + ")";
+                                    break;
+                                case PointingTreeNodeType.UserDefinedStructData:
+                                    UserDefinedStructExport usCatUDS = (UserDefinedStructExport)usCat;
+                                    List<PropertyData> newData2 = new List<PropertyData>();
+                                    for (int i = 0; i < dataGridView1.Rows.Count; i++)
+                                    {
+                                        PropertyData val = RowToPD(i, usCatUDS.StructData.ElementAtOrDefault(i), false, asset.HasUnversionedProperties);
+                                        if (val == null)
+                                        {
+                                            dirtySinceLastLoad = true;
+                                            newData2.Add(null);
+                                            continue;
+                                        }
+                                        newData2.Add(val);
+                                    }
+                                    if (newData2[newData2.Count - 1] == null) newData2.RemoveAt(newData2.Count - 1);
+                                    usCatUDS.StructData = newData2;
+                                    pointerNode.Text = "UserDefinedStruct Data (" + newData2.Count + ")";
                                     break;
                                 case PointingTreeNodeType.EnumData:
                                     if (usCat is EnumExport enumCat)
@@ -2200,8 +2732,17 @@ namespace UAssetGUI
                                         }
                                     }
                                     break;
+                                case PointingTreeNodeType.Kismet:
+                                    if (!UAGConfig.Data.EnablePrettyBytecode)
+                                    {
+                                        try
+                                        {
+                                            ((StructExport)pointerNode.Pointer).ScriptBytecode = asset.DeserializeJsonObject<KismetExpression[]>(jsonView.Text);
+                                        }
+                                        catch { }
+                                    }
+                                    break;
                             }
-
                         }
                         else if (pointerNode.Pointer is UDataTable dtUs)
                         {
@@ -2210,9 +2751,10 @@ namespace UAssetGUI
                             ///var numTimesNameUses = new Dictionary<string, int>();
                             for (int i = 0; i < dataGridView1.Rows.Count; i++)
                             {
-                                PropertyData val = RowToPD(i, dtUs.Data.ElementAtOrDefault(i));
+                                PropertyData val = RowToPD(i, dtUs.Data.ElementAtOrDefault(i), false, false);
                                 if (val == null || !(val is StructPropertyData))
                                 {
+                                    dirtySinceLastLoad = true;
                                     newData.Add(null);
                                     continue;
                                 }
@@ -2241,8 +2783,15 @@ namespace UAssetGUI
                             List<PropertyData> origArr = usArr.Value.ToList();
                             for (int i = 0; i < dataGridView1.Rows.Count; i++)
                             {
-                                PropertyData val = RowToPD(i, origArr.ElementAtOrDefault(i), !(origArr.ElementAtOrDefault(i) is StructPropertyData));
-                                if (val != null) count++;
+                                PropertyData val = RowToPD(i, origArr.ElementAtOrDefault(i), !(origArr.ElementAtOrDefault(i) is StructPropertyData), asset.HasUnversionedProperties, PropertySerializationContext.Array);
+                                if (val == null)
+                                {
+                                    dirtySinceLastLoad = true;
+                                    newData.Add(null);
+                                    continue;
+                                    // deliberately do not increment count
+                                }
+                                count++;
                                 newData.Add(val);
                             }
                             usArr.Value = newData.ToArray();
@@ -2275,8 +2824,8 @@ namespace UAssetGUI
                                 }
                             }
 
-                            PropertyData desiredKey = RowToPD(0, usDictEntry.Entry.Key, true);
-                            PropertyData desiredValue = RowToPD(1, usDictEntry.Entry.Value, true);
+                            PropertyData desiredKey = RowToPD(0, usDictEntry.Entry.Key, true, asset.HasUnversionedProperties, PropertySerializationContext.Map);
+                            PropertyData desiredValue = RowToPD(1, usDictEntry.Entry.Value, true, asset.HasUnversionedProperties, PropertySerializationContext.Map);
 
                             if (currentEntry >= 0)
                             {
@@ -2294,8 +2843,12 @@ namespace UAssetGUI
                             List<PropertyData> origArr = usRealArrEntry.ToList();
                             for (int i = 0; i < dataGridView1.Rows.Count; i++)
                             {
-                                PropertyData val = RowToPD(i, origArr.ElementAtOrDefault(i));
-                                if (val == null) continue;
+                                PropertyData val = RowToPD(i, origArr.ElementAtOrDefault(i), false, asset.HasUnversionedProperties);
+                                if (val == null)
+                                {
+                                    dirtySinceLastLoad = true;
+                                    continue;
+                                }
                                 newData.Add(val);
                             }
                             pointerNode.Pointer = newData.ToArray();
@@ -2315,11 +2868,12 @@ namespace UAssetGUI
             }
         }
 
-        public TableHandler(DataGridView dataGridView1, UAsset asset, TreeView treeView1)
+        public TableHandler(DataGridView dataGridView1, UAsset asset, TreeView treeView1, TextBox jsonView)
         {
             this.asset = asset;
             this.dataGridView1 = dataGridView1;
             this.treeView1 = treeView1;
+            this.jsonView = jsonView;
             this.mode = 0;
         }
     }

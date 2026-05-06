@@ -28,202 +28,298 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.infoLabel = new System.Windows.Forms.Label();
-            this.closeButton = new System.Windows.Forms.Button();
-            this.label1 = new System.Windows.Forms.Label();
-            this.label2 = new System.Windows.Forms.Label();
-            this.aboutButton = new System.Windows.Forms.Button();
-            this.themeComboBox = new System.Windows.Forms.ComboBox();
-            this.favoriteThingBox = new System.Windows.Forms.TextBox();
-            this.valuesOnScroll = new System.Windows.Forms.CheckBox();
-            this.numericUpDown1 = new System.Windows.Forms.NumericUpDown();
-            this.label3 = new System.Windows.Forms.Label();
-            this.enableDiscordRpc = new System.Windows.Forms.CheckBox();
-            this.enableDynamicTree = new System.Windows.Forms.CheckBox();
-            this.doubleClickToEdit = new System.Windows.Forms.CheckBox();
-            this.enableBak = new System.Windows.Forms.CheckBox();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDown1)).BeginInit();
-            this.SuspendLayout();
+            infoLabel = new System.Windows.Forms.Label();
+            closeButton = new System.Windows.Forms.Button();
+            label1 = new System.Windows.Forms.Label();
+            label2 = new System.Windows.Forms.Label();
+            aboutButton = new System.Windows.Forms.Button();
+            themeComboBox = new System.Windows.Forms.ComboBox();
+            favoriteThingBox = new System.Windows.Forms.TextBox();
+            valuesOnScroll = new System.Windows.Forms.CheckBox();
+            numericUpDown1 = new System.Windows.Forms.NumericUpDown();
+            label3 = new System.Windows.Forms.Label();
+            enableDiscordRpc = new System.Windows.Forms.CheckBox();
+            enableDynamicTree = new System.Windows.Forms.CheckBox();
+            doubleClickToEdit = new System.Windows.Forms.CheckBox();
+            enableBak = new System.Windows.Forms.CheckBox();
+            restoreSize = new System.Windows.Forms.CheckBox();
+            enableUpdateNotice = new System.Windows.Forms.CheckBox();
+            enablePrettyBytecode = new System.Windows.Forms.CheckBox();
+            label4 = new System.Windows.Forms.Label();
+            customSerializationFlagsBox = new System.Windows.Forms.CheckedListBox();
+            pictureBox1 = new System.Windows.Forms.PictureBox();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
+            SuspendLayout();
             // 
             // infoLabel
             // 
-            this.infoLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.infoLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.25F);
-            this.infoLabel.Location = new System.Drawing.Point(13, 9);
-            this.infoLabel.Name = "infoLabel";
-            this.infoLabel.Size = new System.Drawing.Size(257, 40);
-            this.infoLabel.TabIndex = 1;
-            this.infoLabel.Text = "Settings:";
-            this.infoLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            infoLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            infoLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.25F);
+            infoLabel.Location = new System.Drawing.Point(15, 10);
+            infoLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            infoLabel.Name = "infoLabel";
+            infoLabel.Size = new System.Drawing.Size(392, 46);
+            infoLabel.TabIndex = 1;
+            infoLabel.Text = "Settings:";
+            infoLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // closeButton
             // 
-            this.closeButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.closeButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.closeButton.Font = new System.Drawing.Font("Arial", 8F, System.Drawing.FontStyle.Bold);
-            this.closeButton.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.closeButton.Location = new System.Drawing.Point(195, 270);
-            this.closeButton.Name = "closeButton";
-            this.closeButton.Size = new System.Drawing.Size(75, 26);
-            this.closeButton.TabIndex = 4;
-            this.closeButton.Text = "Close";
-            this.closeButton.UseVisualStyleBackColor = true;
-            this.closeButton.Click += new System.EventHandler(this.closeButton_Click);
+            closeButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+            closeButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            closeButton.Font = new System.Drawing.Font("Arial", 8F, System.Drawing.FontStyle.Bold);
+            closeButton.ForeColor = System.Drawing.SystemColors.ControlText;
+            closeButton.Location = new System.Drawing.Point(319, 313);
+            closeButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            closeButton.Name = "closeButton";
+            closeButton.Size = new System.Drawing.Size(88, 30);
+            closeButton.TabIndex = 4;
+            closeButton.Text = "Close";
+            closeButton.UseVisualStyleBackColor = true;
+            closeButton.Click += closeButton_Click;
             // 
             // label1
             // 
-            this.label1.AutoSize = true;
-            this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.25F);
-            this.label1.Location = new System.Drawing.Point(56, 62);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(53, 16);
-            this.label1.TabIndex = 5;
-            this.label1.Text = "Theme:";
+            label1.AutoSize = true;
+            label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.25F);
+            label1.Location = new System.Drawing.Point(72, 72);
+            label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(53, 16);
+            label1.TabIndex = 5;
+            label1.Text = "Theme:";
             // 
             // label2
             // 
-            this.label2.AutoSize = true;
-            this.label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.25F);
-            this.label2.Location = new System.Drawing.Point(13, 88);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(96, 16);
-            this.label2.TabIndex = 6;
-            this.label2.Text = "Favorite Thing:";
+            label2.AutoSize = true;
+            label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.25F);
+            label2.Location = new System.Drawing.Point(22, 102);
+            label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label2.Name = "label2";
+            label2.Size = new System.Drawing.Size(96, 16);
+            label2.TabIndex = 6;
+            label2.Text = "Favorite Thing:";
             // 
             // aboutButton
             // 
-            this.aboutButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.aboutButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.aboutButton.Font = new System.Drawing.Font("Arial", 8F, System.Drawing.FontStyle.Bold);
-            this.aboutButton.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.aboutButton.Location = new System.Drawing.Point(12, 270);
-            this.aboutButton.Name = "aboutButton";
-            this.aboutButton.Size = new System.Drawing.Size(75, 26);
-            this.aboutButton.TabIndex = 7;
-            this.aboutButton.Text = "About...";
-            this.aboutButton.UseVisualStyleBackColor = true;
-            this.aboutButton.Click += new System.EventHandler(this.aboutButton_Click);
+            aboutButton.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left;
+            aboutButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            aboutButton.Font = new System.Drawing.Font("Arial", 8F, System.Drawing.FontStyle.Bold);
+            aboutButton.ForeColor = System.Drawing.SystemColors.ControlText;
+            aboutButton.Location = new System.Drawing.Point(14, 313);
+            aboutButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            aboutButton.Name = "aboutButton";
+            aboutButton.Size = new System.Drawing.Size(88, 30);
+            aboutButton.TabIndex = 7;
+            aboutButton.Text = "About...";
+            aboutButton.UseVisualStyleBackColor = true;
+            aboutButton.Click += aboutButton_Click;
             // 
             // themeComboBox
             // 
-            this.themeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.themeComboBox.FormattingEnabled = true;
-            this.themeComboBox.Location = new System.Drawing.Point(116, 61);
-            this.themeComboBox.Name = "themeComboBox";
-            this.themeComboBox.Size = new System.Drawing.Size(121, 21);
-            this.themeComboBox.TabIndex = 8;
-            this.themeComboBox.SelectedIndexChanged += new System.EventHandler(this.themeComboBox_SelectedIndexChanged);
+            themeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            themeComboBox.FormattingEnabled = true;
+            themeComboBox.Location = new System.Drawing.Point(142, 70);
+            themeComboBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            themeComboBox.Name = "themeComboBox";
+            themeComboBox.Size = new System.Drawing.Size(252, 23);
+            themeComboBox.TabIndex = 8;
+            themeComboBox.SelectedIndexChanged += themeComboBox_SelectedIndexChanged;
             // 
             // favoriteThingBox
             // 
-            this.favoriteThingBox.Location = new System.Drawing.Point(116, 87);
-            this.favoriteThingBox.Name = "favoriteThingBox";
-            this.favoriteThingBox.Size = new System.Drawing.Size(121, 20);
-            this.favoriteThingBox.TabIndex = 9;
-            this.favoriteThingBox.TextChanged += new System.EventHandler(this.favoriteThingBox_TextChanged);
+            favoriteThingBox.Location = new System.Drawing.Point(142, 100);
+            favoriteThingBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            favoriteThingBox.Name = "favoriteThingBox";
+            favoriteThingBox.Size = new System.Drawing.Size(252, 23);
+            favoriteThingBox.TabIndex = 9;
+            favoriteThingBox.TextChanged += favoriteThingBox_TextChanged;
             // 
             // valuesOnScroll
             // 
-            this.valuesOnScroll.AutoSize = true;
-            this.valuesOnScroll.Location = new System.Drawing.Point(116, 139);
-            this.valuesOnScroll.Name = "valuesOnScroll";
-            this.valuesOnScroll.Size = new System.Drawing.Size(139, 17);
-            this.valuesOnScroll.TabIndex = 10;
-            this.valuesOnScroll.Text = "Change values on scroll";
-            this.valuesOnScroll.UseVisualStyleBackColor = true;
-            this.valuesOnScroll.CheckedChanged += new System.EventHandler(this.valuesOnScroll_CheckedChanged);
+            valuesOnScroll.AutoSize = true;
+            valuesOnScroll.Location = new System.Drawing.Point(215, 198);
+            valuesOnScroll.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            valuesOnScroll.Name = "valuesOnScroll";
+            valuesOnScroll.Size = new System.Drawing.Size(151, 19);
+            valuesOnScroll.TabIndex = 10;
+            valuesOnScroll.Text = "Change values on scroll";
+            valuesOnScroll.UseVisualStyleBackColor = true;
+            valuesOnScroll.CheckedChanged += valuesOnScroll_CheckedChanged;
             // 
             // numericUpDown1
             // 
-            this.numericUpDown1.Location = new System.Drawing.Point(116, 113);
-            this.numericUpDown1.Name = "numericUpDown1";
-            this.numericUpDown1.Size = new System.Drawing.Size(120, 20);
-            this.numericUpDown1.TabIndex = 11;
-            this.numericUpDown1.ValueChanged += new System.EventHandler(this.numericUpDown1_ValueChanged);
+            numericUpDown1.Location = new System.Drawing.Point(142, 130);
+            numericUpDown1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            numericUpDown1.Name = "numericUpDown1";
+            numericUpDown1.Size = new System.Drawing.Size(252, 23);
+            numericUpDown1.TabIndex = 11;
+            numericUpDown1.ValueChanged += numericUpDown1_ValueChanged;
             // 
             // label3
             // 
-            this.label3.AutoSize = true;
-            this.label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.25F);
-            this.label3.Location = new System.Drawing.Point(64, 113);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(45, 16);
-            this.label3.TabIndex = 12;
-            this.label3.Text = "Zoom:";
+            label3.AutoSize = true;
+            label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.25F);
+            label3.Location = new System.Drawing.Point(82, 130);
+            label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label3.Name = "label3";
+            label3.Size = new System.Drawing.Size(45, 16);
+            label3.TabIndex = 12;
+            label3.Text = "Zoom:";
             // 
             // enableDiscordRpc
             // 
-            this.enableDiscordRpc.AutoSize = true;
-            this.enableDiscordRpc.Location = new System.Drawing.Point(116, 208);
-            this.enableDiscordRpc.Name = "enableDiscordRpc";
-            this.enableDiscordRpc.Size = new System.Drawing.Size(123, 17);
-            this.enableDiscordRpc.TabIndex = 13;
-            this.enableDiscordRpc.Text = "Enable Discord RPC";
-            this.enableDiscordRpc.UseVisualStyleBackColor = true;
-            this.enableDiscordRpc.CheckedChanged += new System.EventHandler(this.enableDiscordRpc_CheckedChanged);
+            enableDiscordRpc.AutoSize = true;
+            enableDiscordRpc.Location = new System.Drawing.Point(29, 198);
+            enableDiscordRpc.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            enableDiscordRpc.Name = "enableDiscordRpc";
+            enableDiscordRpc.Size = new System.Drawing.Size(129, 19);
+            enableDiscordRpc.TabIndex = 13;
+            enableDiscordRpc.Text = "Enable Discord RPC";
+            enableDiscordRpc.UseVisualStyleBackColor = true;
+            enableDiscordRpc.CheckedChanged += enableDiscordRpc_CheckedChanged;
             // 
             // enableDynamicTree
             // 
-            this.enableDynamicTree.AutoSize = true;
-            this.enableDynamicTree.Location = new System.Drawing.Point(116, 231);
-            this.enableDynamicTree.Name = "enableDynamicTree";
-            this.enableDynamicTree.Size = new System.Drawing.Size(122, 17);
-            this.enableDynamicTree.TabIndex = 14;
-            this.enableDynamicTree.Text = "Enable dynamic tree";
-            this.enableDynamicTree.UseVisualStyleBackColor = true;
-            this.enableDynamicTree.CheckedChanged += new System.EventHandler(this.enableDynamicTree_CheckedChanged);
+            enableDynamicTree.AutoSize = true;
+            enableDynamicTree.Location = new System.Drawing.Point(29, 251);
+            enableDynamicTree.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            enableDynamicTree.Name = "enableDynamicTree";
+            enableDynamicTree.Size = new System.Drawing.Size(133, 19);
+            enableDynamicTree.TabIndex = 14;
+            enableDynamicTree.Text = "Enable dynamic tree";
+            enableDynamicTree.UseVisualStyleBackColor = true;
+            enableDynamicTree.CheckedChanged += enableDynamicTree_CheckedChanged;
             // 
             // doubleClickToEdit
             // 
-            this.doubleClickToEdit.AutoSize = true;
-            this.doubleClickToEdit.Location = new System.Drawing.Point(116, 162);
-            this.doubleClickToEdit.Name = "doubleClickToEdit";
-            this.doubleClickToEdit.Size = new System.Drawing.Size(117, 17);
-            this.doubleClickToEdit.TabIndex = 15;
-            this.doubleClickToEdit.Text = "Double click to edit";
-            this.doubleClickToEdit.UseVisualStyleBackColor = true;
-            this.doubleClickToEdit.CheckedChanged += new System.EventHandler(this.doubleClickToEdit_CheckedChanged);
+            doubleClickToEdit.AutoSize = true;
+            doubleClickToEdit.Location = new System.Drawing.Point(29, 225);
+            doubleClickToEdit.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            doubleClickToEdit.Name = "doubleClickToEdit";
+            doubleClickToEdit.Size = new System.Drawing.Size(128, 19);
+            doubleClickToEdit.TabIndex = 15;
+            doubleClickToEdit.Text = "Double click to edit";
+            doubleClickToEdit.UseVisualStyleBackColor = true;
+            doubleClickToEdit.CheckedChanged += doubleClickToEdit_CheckedChanged;
             // 
             // enableBak
             // 
-            this.enableBak.AutoSize = true;
-            this.enableBak.Location = new System.Drawing.Point(116, 185);
-            this.enableBak.Name = "enableBak";
-            this.enableBak.Size = new System.Drawing.Size(104, 17);
-            this.enableBak.TabIndex = 16;
-            this.enableBak.Text = "Enable .bak files";
-            this.enableBak.UseVisualStyleBackColor = true;
-            this.enableBak.CheckedChanged += new System.EventHandler(this.enableBak_CheckedChanged);
+            enableBak.AutoSize = true;
+            enableBak.Location = new System.Drawing.Point(215, 225);
+            enableBak.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            enableBak.Name = "enableBak";
+            enableBak.Size = new System.Drawing.Size(110, 19);
+            enableBak.TabIndex = 16;
+            enableBak.Text = "Enable .bak files";
+            enableBak.UseVisualStyleBackColor = true;
+            enableBak.CheckedChanged += enableBak_CheckedChanged;
+            // 
+            // restoreSize
+            // 
+            restoreSize.AutoSize = true;
+            restoreSize.Location = new System.Drawing.Point(215, 251);
+            restoreSize.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            restoreSize.Name = "restoreSize";
+            restoreSize.Size = new System.Drawing.Size(156, 19);
+            restoreSize.TabIndex = 17;
+            restoreSize.Text = "Restore GUI size on open";
+            restoreSize.UseVisualStyleBackColor = true;
+            restoreSize.CheckedChanged += restoreSize_CheckedChanged;
+            // 
+            // enableUpdateNotice
+            // 
+            enableUpdateNotice.AutoSize = true;
+            enableUpdateNotice.Location = new System.Drawing.Point(29, 278);
+            enableUpdateNotice.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            enableUpdateNotice.Name = "enableUpdateNotice";
+            enableUpdateNotice.Size = new System.Drawing.Size(137, 19);
+            enableUpdateNotice.TabIndex = 18;
+            enableUpdateNotice.Text = "Enable update notice";
+            enableUpdateNotice.UseVisualStyleBackColor = true;
+            enableUpdateNotice.CheckedChanged += enableUpdateNotice_CheckedChanged;
+            // 
+            // enablePrettyBytecode
+            // 
+            enablePrettyBytecode.AutoSize = true;
+            enablePrettyBytecode.Location = new System.Drawing.Point(215, 276);
+            enablePrettyBytecode.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            enablePrettyBytecode.Name = "enablePrettyBytecode";
+            enablePrettyBytecode.Size = new System.Drawing.Size(147, 19);
+            enablePrettyBytecode.TabIndex = 19;
+            enablePrettyBytecode.Text = "Enable pretty bytecode";
+            enablePrettyBytecode.UseVisualStyleBackColor = true;
+            enablePrettyBytecode.CheckedChanged += enablePrettyBytecode_CheckedChanged;
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.25F);
+            label4.Location = new System.Drawing.Point(82, 161);
+            label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label4.Name = "label4";
+            label4.Size = new System.Drawing.Size(44, 16);
+            label4.TabIndex = 21;
+            label4.Text = "Flags:";
+            // 
+            // customSerializationFlagsBox
+            // 
+            customSerializationFlagsBox.CheckOnClick = true;
+            customSerializationFlagsBox.FormattingEnabled = true;
+            customSerializationFlagsBox.Location = new System.Drawing.Point(142, 161);
+            customSerializationFlagsBox.Name = "customSerializationFlagsBox";
+            customSerializationFlagsBox.ScrollAlwaysVisible = true;
+            customSerializationFlagsBox.SelectionMode = System.Windows.Forms.SelectionMode.None;
+            customSerializationFlagsBox.Size = new System.Drawing.Size(252, 22);
+            customSerializationFlagsBox.TabIndex = 22;
+            customSerializationFlagsBox.Click += customSerializationFlagsBox_Click;
+            // 
+            // pictureBox1
+            // 
+            pictureBox1.Location = new System.Drawing.Point(6, 10);
+            pictureBox1.Name = "pictureBox1";
+            pictureBox1.Size = new System.Drawing.Size(61, 78);
+            pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            pictureBox1.TabIndex = 23;
+            pictureBox1.TabStop = false;
+            pictureBox1.Visible = false;
             // 
             // SettingsForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(282, 302);
-            this.Controls.Add(this.enableBak);
-            this.Controls.Add(this.doubleClickToEdit);
-            this.Controls.Add(this.enableDynamicTree);
-            this.Controls.Add(this.enableDiscordRpc);
-            this.Controls.Add(this.label3);
-            this.Controls.Add(this.numericUpDown1);
-            this.Controls.Add(this.valuesOnScroll);
-            this.Controls.Add(this.favoriteThingBox);
-            this.Controls.Add(this.themeComboBox);
-            this.Controls.Add(this.aboutButton);
-            this.Controls.Add(this.label2);
-            this.Controls.Add(this.label1);
-            this.Controls.Add(this.closeButton);
-            this.Controls.Add(this.infoLabel);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            this.Name = "SettingsForm";
-            this.Text = "Settings";
-            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.SettingsForm_FormClosing);
-            this.Load += new System.EventHandler(this.SettingsForm_Load);
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDown1)).EndInit();
-            this.ResumeLayout(false);
-            this.PerformLayout();
-
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            ClientSize = new System.Drawing.Size(421, 351);
+            Controls.Add(pictureBox1);
+            Controls.Add(customSerializationFlagsBox);
+            Controls.Add(label4);
+            Controls.Add(enablePrettyBytecode);
+            Controls.Add(enableUpdateNotice);
+            Controls.Add(restoreSize);
+            Controls.Add(enableBak);
+            Controls.Add(doubleClickToEdit);
+            Controls.Add(enableDynamicTree);
+            Controls.Add(enableDiscordRpc);
+            Controls.Add(label3);
+            Controls.Add(numericUpDown1);
+            Controls.Add(valuesOnScroll);
+            Controls.Add(favoriteThingBox);
+            Controls.Add(themeComboBox);
+            Controls.Add(aboutButton);
+            Controls.Add(label2);
+            Controls.Add(label1);
+            Controls.Add(closeButton);
+            Controls.Add(infoLabel);
+            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            Name = "SettingsForm";
+            Text = "Settings";
+            FormClosing += SettingsForm_FormClosing;
+            Load += SettingsForm_Load;
+            ((System.ComponentModel.ISupportInitialize)numericUpDown1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -234,13 +330,19 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button aboutButton;
         private System.Windows.Forms.ComboBox themeComboBox;
-        private System.Windows.Forms.TextBox favoriteThingBox;
         private System.Windows.Forms.CheckBox valuesOnScroll;
-        private System.Windows.Forms.NumericUpDown numericUpDown1;
-        private System.Windows.Forms.Label label3;
         private System.Windows.Forms.CheckBox enableDiscordRpc;
         private System.Windows.Forms.CheckBox enableDynamicTree;
         private System.Windows.Forms.CheckBox doubleClickToEdit;
         private System.Windows.Forms.CheckBox enableBak;
+        private System.Windows.Forms.CheckBox restoreSize;
+        private System.Windows.Forms.CheckBox enableUpdateNotice;
+        private System.Windows.Forms.CheckBox enablePrettyBytecode;
+        internal System.Windows.Forms.NumericUpDown numericUpDown1;
+        internal System.Windows.Forms.Label label3;
+        internal System.Windows.Forms.TextBox favoriteThingBox;
+        internal System.Windows.Forms.CheckedListBox customSerializationFlagsBox;
+        internal System.Windows.Forms.Label label4;
+        private System.Windows.Forms.PictureBox pictureBox1;
     }
 }

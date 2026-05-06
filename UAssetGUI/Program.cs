@@ -1,5 +1,5 @@
-﻿using DiscordRPC;
-using System;
+﻿using System;
+using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -23,6 +23,7 @@ namespace UAssetGUI
             if (Environment.OSVersion.Version.Major >= 6) SetProcessDPIAware();
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            Application.SetDefaultFont(new Font(new FontFamily("Microsoft Sans Serif"), 8.25f)); // default font changed in .NET Core 3.0
 
             string[] args = Environment.GetCommandLineArgs();
             if (args.Length >= 2)
@@ -32,18 +33,16 @@ namespace UAssetGUI
                 switch (args[1].ToLowerInvariant())
                 {
                     // tojson <source> <destination> <engine version> [mappings name]
-                    // UAssetGUI tojson A.umap B.json 514 Outriders
+                    // UAssetGUI tojson A.umap B.json 23 Outriders
                     case "tojson":
                         UAGConfig.LoadMappings();
 
                         if (args.Length < 5) break;
-                        if (args.Length >= 6) selectedMappings = UAGConfig.AllMappings.ContainsKey(args[5]) ? UAGConfig.AllMappings[args[5]] : null;
+                        if (args.Length >= 6) UAGConfig.TryGetMappings(args[5], out selectedMappings);
 
                         EngineVersion selectedVer = EngineVersion.UNKNOWN;
-                        if (!Enum.TryParse(args[4], out selectedVer))
-                        {
-                            if (int.TryParse(args[4], out int selectedVerRaw)) selectedVer = EngineVersion.VER_UE4_0 + selectedVerRaw;
-                        }
+                        if (int.TryParse(args[4], out int selectedVerRaw)) selectedVer = EngineVersion.VER_UE4_0 + selectedVerRaw;
+                        else Enum.TryParse(args[4], out selectedVer);
 
                         string jsonSerializedAsset = new UAsset(args[2], selectedVer, selectedMappings).SerializeJson(Newtonsoft.Json.Formatting.Indented);
                         File.WriteAllText(args[3], jsonSerializedAsset);
@@ -54,7 +53,7 @@ namespace UAssetGUI
                         UAGConfig.LoadMappings();
 
                         if (args.Length < 4) break;
-                        if (args.Length >= 5) selectedMappings = UAGConfig.AllMappings.ContainsKey(args[4]) ? UAGConfig.AllMappings[args[4]] : null;
+                        if (args.Length >= 5) UAGConfig.TryGetMappings(args[4], out selectedMappings);
 
                         UAsset jsonDeserializedAsset = null;
                         using (var sr = new FileStream(args[2], FileMode.Open))

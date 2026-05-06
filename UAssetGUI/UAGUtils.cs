@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
 using System.Text;
@@ -57,9 +58,10 @@ namespace UAssetGUI
             }
         }
 
-        public static void AdjustFormPosition(this Form frm1)
+        public static void AdjustFormPosition(this Form frm1, Form overrideOwner = null)
         {
-            if (frm1.Owner != null) frm1.Location = new Point((frm1.Owner.Location.X + frm1.Owner.Width / 2) - (frm1.Width / 2), (frm1.Owner.Location.Y + frm1.Owner.Height / 2) - (frm1.Height / 2));
+            if (overrideOwner == null) overrideOwner = frm1.Owner;
+            if (overrideOwner != null) frm1.Location = new Point((overrideOwner.Location.X + overrideOwner.Width / 2) - (frm1.Width / 2), (overrideOwner.Location.Y + overrideOwner.Height / 2) - (frm1.Height / 2));
         }
 
         public static void UpdateObjectPropertyValues(UAsset asset, DataGridViewRow row, DataGridView dgv, FPackageIndex objData, int column = 3)
@@ -127,7 +129,7 @@ namespace UAssetGUI
 
         public static byte[] ConvertStringToByteArray(this string val)
         {
-            if (val == null) return new byte[0];
+            if (string.IsNullOrWhiteSpace(val)) return Array.Empty<byte>();
             string[] rawStringArr = val.Split(' ');
             byte[] byteArr = new byte[rawStringArr.Length];
             for (int i = 0; i < rawStringArr.Length; i++) byteArr[i] = Convert.ToByte(rawStringArr[i], 16);
@@ -140,17 +142,14 @@ namespace UAssetGUI
         }
 
         /*
-            UAssetGUI versions are formatted as follows: MAJOR.MINOR.BUILD.REVISION
+            UAssetGUI versions are formatted as follows: MAJOR.MINOR.BUILD
             * MAJOR - incremented for very big changes or backwards-incompatible changes
             * MINOR - incremented for notable changes
             * BUILD - incremented for bug fixes or very small improvements
-            * REVISION - incremented for test/alpha builds of the existing version
-            
-            2.0.0.0 > 1.5.0.0 > 1.4.1.0 > 1.4.0.1 > 1.4.0.0
         */
         public static bool IsUAGVersionLower(this Version v1)
         {
-            Version fullUagVersion = Assembly.GetExecutingAssembly().GetName().Version;
+            Version fullUagVersion = new Version(Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion);
             return v1.CompareTo(fullUagVersion) > 0;
         }
 
@@ -166,14 +165,30 @@ namespace UAssetGUI
             return FString.FromString(val.Replace("\\n", "\n").Replace("\\r", "\r"), encodingHeaderName.Equals(Encoding.Unicode.HeaderName) ? Encoding.Unicode : Encoding.ASCII);
         }
 
+        public static void OpenURL(string url)
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+
+        public static void OpenDirectory(string dir)
+        {
+            Process.Start(new ProcessStartInfo()
+            {
+                FileName = dir,
+                UseShellExecute = true,
+                Verb = "open"
+            });
+        }
+
         private static Control internalForm;
         public static void InitializeInvoke(Control control)
         {
             internalForm = control;
         }
 
-        public static void InvokeUI(Action act)
+        public static bool InvokeUI(Action act)
         {
+            if (internalForm == null) return false;
             if (internalForm.InvokeRequired)
             {
                 internalForm.Invoke(act);
@@ -182,6 +197,7 @@ namespace UAssetGUI
             {
                 act();
             }
+            return true;
         }
     }
 }

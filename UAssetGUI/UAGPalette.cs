@@ -11,7 +11,7 @@ namespace UAssetGUI
         {
             UAGUtils.InvokeUI(() =>
             {
-                if (!e.Item.Selected && !Form1.IsDropDownOpened(e.Item))
+                if (!e.Item.Selected && !Form1.IsDropDownOpened(e.Item) && !FileContainerForm.IsDropDownOpened(e.Item))
                 {
                     e.Item.ForeColor = UAGPalette.ForeColor;
                     base.OnRenderMenuItemBackground(e);
@@ -63,10 +63,21 @@ namespace UAssetGUI
             });
         }
 
+        /// <summary>
+        /// null = check based on favorite thing, false = force no comic sans, true = force yes comic sans
+        /// </summary>
+        public static bool? IsComicSansOverride = null;
+        public static bool IsComicSans()
+        {
+            if (IsComicSansOverride != null) return (bool)IsComicSansOverride;
+            return UAGConfig.Data.FavoriteThing.ToLowerInvariant().Trim().StartsWith("comic sans");
+        }
+
 
         private static Dictionary<Control, Font> oldFontSettings = null;
-        private static void RefreshAllButtonsInControl(this Control ctrl)
+        private static void RefreshAllButtonsInControl(this Control ctrl, out bool needRefreshForComicSans)
         {
+            needRefreshForComicSans = false;
             foreach (Control ctrl2 in ctrl.Controls)
             {
                 if (ctrl2 is Button butto)
@@ -89,19 +100,28 @@ namespace UAssetGUI
                     gp.ForeColor = UAGPalette.ForeColor;
                 }
 
-                if (UAGConfig.Data.FavoriteThing.ToLowerInvariant().StartsWith("comic sans"))
+                if (IsComicSans())
                 {
                     if (oldFontSettings == null) oldFontSettings = new Dictionary<Control, Font>();
-                    if (ctrl2.Font.FontFamily.Name != "Comic Sans MS") oldFontSettings[ctrl2] = ctrl2.Font;
+                    if (ctrl2.Font.FontFamily.Name != "Comic Sans MS")
+                    {
+                        oldFontSettings[ctrl2] = ctrl2.Font;
+                        needRefreshForComicSans = true;
+                    }
                     ctrl2.Font = new Font("Comic Sans MS", ctrl2.Font.Size, ctrl2.Font.Style);
                 }
                 else if (oldFontSettings != null)
                 {
-                    if (oldFontSettings.ContainsKey(ctrl2) && oldFontSettings[ctrl2] != null) ctrl2.Font = oldFontSettings[ctrl2];
+                    if (oldFontSettings.ContainsKey(ctrl2) && oldFontSettings[ctrl2] != null)
+                    {
+                        ctrl2.Font = oldFontSettings[ctrl2];
+                        needRefreshForComicSans = true;
+                    }
                     oldFontSettings[ctrl2] = null;
                 }
 
-                RefreshAllButtonsInControl(ctrl2);
+                RefreshAllButtonsInControl(ctrl2, out bool needRefreshForComicSansInner);
+                if (needRefreshForComicSansInner) needRefreshForComicSans = true;
             }
         }
 
@@ -130,6 +150,34 @@ namespace UAssetGUI
             dgv.RowTemplate.Height = dgv.RowTemplate.MinimumHeight;
         }
 
+        private static void AdjustTreeView(ColorfulTreeView treeView1)
+        {
+            Color selectedListViewBackColor = treeView1.Nodes.Count > 0 ? UAGPalette.BackColor : UAGPalette.InactiveColor;
+            treeView1.BackColor = selectedListViewBackColor;
+            treeView1.ForeColor = UAGPalette.ForeColor;
+            treeView1.Font = new Font(treeView1.Font.FontFamily, 8.25f + (float)UAGConfig.Data.DataZoom, treeView1.Font.Style);
+        }
+
+        private static void AdjustMenuStrip(MenuStrip menuStrip1)
+        {
+            menuStrip1.BackColor = UAGPalette.BackColor;
+            menuStrip1.ForeColor = UAGPalette.ForeColor;
+            foreach (ToolStripItem rootItem in menuStrip1.Items)
+            {
+                rootItem.BackColor = UAGPalette.BackColor;
+                rootItem.ForeColor = UAGPalette.ForeColor;
+                if (rootItem is ToolStripMenuItem rootMenuItem)
+                {
+                    foreach (ToolStripItem childItem in rootMenuItem.DropDownItems)
+                    {
+                        childItem.BackColor = UAGPalette.BackColor;
+                        childItem.ForeColor = UAGPalette.ForeColor;
+                    }
+                }
+            }
+        }
+
+        public static readonly int InitialSplitterDistance = 408;
         private static void RefreshThemeInternal(Form frm)
         {
             switch (CurrentTheme)
@@ -156,31 +204,15 @@ namespace UAssetGUI
                     break;
             }
 
+            frm.RefreshAllButtonsInControl(out bool needRefreshForComicSans);
+
             frm.Icon = Properties.Resources.icon;
             frm.BackColor = UAGPalette.BackColor;
             frm.ForeColor = UAGPalette.ForeColor;
             if (frm is Form1 frm1)
             {
-                Color selectedListViewBackColor = frm1.treeView1.Nodes.Count > 0 ? UAGPalette.BackColor : UAGPalette.InactiveColor;
-                frm1.treeView1.BackColor = selectedListViewBackColor;
-                frm1.treeView1.ForeColor = UAGPalette.ForeColor;
-                frm1.treeView1.Font = new Font(frm1.treeView1.Font.FontFamily, 8.25f + (float)UAGConfig.Data.DataZoom, frm1.treeView1.Font.Style);
-
-                frm1.menuStrip1.BackColor = UAGPalette.BackColor;
-                frm1.menuStrip1.ForeColor = UAGPalette.ForeColor;
-                foreach (ToolStripItem rootItem in frm1.menuStrip1.Items)
-                {
-                    rootItem.BackColor = UAGPalette.BackColor;
-                    rootItem.ForeColor = UAGPalette.ForeColor;
-                    if (rootItem is ToolStripMenuItem rootMenuItem)
-                    {
-                        foreach (ToolStripItem childItem in rootMenuItem.DropDownItems)
-                        {
-                            childItem.BackColor = UAGPalette.BackColor;
-                            childItem.ForeColor = UAGPalette.ForeColor;
-                        }
-                    }
-                }
+                AdjustTreeView(frm1.treeView1);
+                AdjustMenuStrip(frm1.menuStrip1);
 
                 frm1.jsonView.ForeColor = UAGPalette.ForeColor;
                 frm1.jsonView.BackColor = UAGPalette.BackColor;
@@ -192,16 +224,38 @@ namespace UAssetGUI
 
                 AdjustDGV(frm1.dataGridView1);
 
+                // reset splitter if comic sans
+                if (needRefreshForComicSans)
+                {
+                    frm1.splitContainer1.SplitterDistance = InitialSplitterDistance;
+                }
+
                 /*if (frm1.tableEditor != null)
                 {
                     frm1.tableEditor.Save(true);
                 }*/
             }
+            if (frm is FileContainerForm frm3)
+            {
+                AdjustTreeView(frm3.saveTreeView);
+                AdjustTreeView(frm3.loadTreeView);
+                AdjustMenuStrip(frm3.menuStrip1);
+            }
             if (frm is MapStructTypeOverrideForm frm2)
             {
                 AdjustDGV(frm2.mstoDataGridView);
             }
-            frm.RefreshAllButtonsInControl();
+
+            // fix some strange formatting issues with the comic sans easter egg
+            // could just always execute this, but just in case this has other undesired effects, only execute it when needed
+            // (not actually that big a deal if the comic sans easter egg breaks something, but a big deal if we break something else just to fix the easter egg...)
+            if (frm is SettingsForm frm4 && needRefreshForComicSans)
+            {
+                frm4.numericUpDown1.Location = new Point(frm4.favoriteThingBox.Location.X, frm4.label3.Location.Y);
+                frm4.numericUpDown1.Size = frm4.favoriteThingBox.Size;
+                frm4.customSerializationFlagsBox.Location = new Point(frm4.favoriteThingBox.Location.X, frm4.label4.Location.Y);
+                frm4.customSerializationFlagsBox.Size = frm4.favoriteThingBox.Size;
+            }
         }
     }
 }
